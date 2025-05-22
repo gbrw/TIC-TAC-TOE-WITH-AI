@@ -269,7 +269,10 @@ class OnlineGame {
         const startGameBtn = document.getElementById('startGameBtn');
         const leaveRoomBtn = document.getElementById('leaveRoomBtn');
         const backToMenuFromGameBtn = document.getElementById('backToMenuFromGameBtn');
-        const copyRoomCode = document.getElementById('copyRoomCode');
+        
+        // أزرار النسخ الجديدة
+        const copyRoomCodeOnly = document.getElementById('copyRoomCodeOnly');
+        const copyRoomCodeWithLink = document.getElementById('copyRoomCodeWithLink');
         
         if (startGameBtn) {
             startGameBtn.addEventListener('click', () => this.startGame());
@@ -286,9 +289,18 @@ class OnlineGame {
             console.log('✅ Back to menu from game button bound');
         }
         
-        if (copyRoomCode) {
-            copyRoomCode.addEventListener('click', () => this.copyRoomCode());
-            console.log('✅ Copy room code button bound');
+        if (copyRoomCodeOnly) {
+            copyRoomCodeOnly.addEventListener('click', () => this.copyRoomCodeOnly());
+            console.log('✅ Copy room code only button bound');
+        } else {
+            console.error('❌ copyRoomCodeOnly not found');
+        }
+        
+        if (copyRoomCodeWithLink) {
+            copyRoomCodeWithLink.addEventListener('click', () => this.copyRoomCodeWithLink());
+            console.log('✅ Copy room code with link button bound');
+        } else {
+            console.error('❌ copyRoomCodeWithLink not found');
         }
         
         // Chat
@@ -783,18 +795,56 @@ class OnlineGame {
         }
     }
     
-    copyRoomCode() {
-        if (!this.roomId) return;
+    // دوال نسخ الأزرار الجديدة
+    copyRoomCodeOnly() {
+        console.log('📋 copyRoomCodeOnly called');
         
-        const textToCopy = `انضم للعب معي! 🎮\nرمز الغرفة: ${this.roomId}\nالرابط: ${window.location.origin}`;
+        if (!this.roomId) {
+            this.showNotification('لا يوجد رمز غرفة للنسخ', 'error');
+            return;
+        }
         
-        navigator.clipboard.writeText(textToCopy).then(() => {
-            this.showNotification('تم نسخ معلومات الغرفة 📋\nأرسلها لصديقك!', 'success');
+        navigator.clipboard.writeText(this.roomId).then(() => {
+            this.showNotification(`✅ تم نسخ رمز الغرفة: ${this.roomId}`, 'success');
         }).catch(() => {
+            this.showNotification('❌ فشل في نسخ رمز الغرفة', 'error');
+        });
+    }
+    
+    copyRoomCodeWithLink() {
+        console.log('🔗 copyRoomCodeWithLink called');
+        
+        if (!this.roomId) {
+            this.showNotification('لا يوجد رمز غرفة للنسخ', 'error');
+            return;
+        }
+        
+        const currentDate = new Date().toLocaleDateString('ar-SA');
+        const currentTime = new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+        
+        const message = `🎮 انضم للعب معي في لعبة X O الآن!
+
+🏠 رمز الغرفة: ${this.roomId}
+🔗 الرابط المباشر: ${window.location.origin}
+📅 تاريخ الدعوة: ${currentDate} - ${currentTime}
+
+📋 خطوات الانضمام:
+1️⃣ افتح الرابط المرفق
+2️⃣ أدخل اسمك في المربع  
+3️⃣ اختر "الانضمام لغرفة"
+4️⃣ أدخل رمز الغرفة: ${this.roomId}
+5️⃣ ابدأ اللعب واستمتع! 🚀
+
+⚡ ملاحظة: الغرفة متاحة الآن - انضم بسرعة!`;
+        
+        navigator.clipboard.writeText(message).then(() => {
+            this.showNotification('🎉 تم نسخ الرابط والتعليمات كاملة!\nأرسله لصديقك الآن 📤', 'success');
+        }).catch(() => {
+            // في حالة فشل النسخ، انسخ الرمز فقط
             navigator.clipboard.writeText(this.roomId).then(() => {
-                this.showNotification('تم نسخ رمز الغرفة 📋', 'success');
+                this.showNotification('✅ تم نسخ رمز الغرفة فقط', 'success');
             }).catch(() => {
-                this.showNotification('فشل في نسخ رمز الغرفة', 'error');
+                this.showNotification('❌ فشل في نسخ المعلومات', 'error');
             });
         });
     }
@@ -984,10 +1034,12 @@ class OnlineGame {
 // Initialize online game when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 DOM loaded, initializing online game...');
+    console.log('📅 Current Date:', new Date().toLocaleDateString('ar-SA'));
+    console.log('🕐 Current Time:', new Date().toLocaleTimeString('ar-SA'));
     
     // تأخير قصير للتأكد من تحميل جميع العناصر
     setTimeout(() => {
         window.onlineGame = new OnlineGame();
-        console.log('✅ Online game initialized');
+        console.log('✅ Online game initialized successfully');
     }, 100);
 });
