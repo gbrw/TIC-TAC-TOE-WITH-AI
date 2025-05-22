@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لعبة X O المتقدمة - اونلاين</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Player Name Setup -->
+        <div class="player-setup" id="playerSetup">
+            <div class="setup-content">
+                <h2>🎮 مرحباً بك في لعبة X O</h2>
+                <div class="input-group">
+                    <input type="text" id="playerNameInput" placeholder="أدخل اسمك" maxlength="20">
+                    <button id="setNameBtn">تأكيد</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Menu -->
+        <div class="main-menu" id="mainMenu" style="display: none;">
+            <header>
+                <h1 class="game-title">🎮 لعبة X O المتقدمة</h1>
+                <div class="player-info">
+                    <span>مرحباً، </span>
+                    <span id="currentPlayerName"></span>
+                </div>
+            </header>
+
+            <div class="menu-options">
+                <button class="menu-btn" id="createRoomBtn">
+                    <span class="btn-icon">🏠</span>
+                    <span class="btn-text">إنشاء غرفة</span>
+                </button>
+                <button class="menu-btn" id="joinRoomBtn">
+                    <span class="btn-icon">🚪</span>
+                    <span class="btn-text">الانضمام لغرفة</span>
+                </button>
+                <button class="menu-btn" id="localGameBtn">
+                    <span class="btn-icon">👥</span>
+                    <span class="btn-text">لعب محلي</span>
+                </button>
+                <button class="menu-btn" id="aiGameBtn">
+                    <span class="btn-icon">🤖</span>
+                    <span class="btn-text">لعب ضد الكمبيوتر</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Room Setup -->
+        <div class="room-setup" id="roomSetup" style="display: none;">
+            <div class="setup-content">
+                <h2 id="roomSetupTitle">الانضمام لغرفة</h2>
+                <div class="input-group">
+                    <input type="text" id="roomCodeInput" placeholder="رمز الغرفة" maxlength="6">
+                    <button id="joinRoomConfirmBtn">انضمام</button>
+                </div>
+                <button class="back-btn" id="backToMenuBtn">العودة للقائمة الرئيسية</button>
+            </div>
+        </div>
+
+        <!-- Game Area -->
+        <div class="game-area" id="gameArea" style="display: none;">
+            <header>
+                <h1 class="game-title">🎮 لعبة X O</h1>
+                <div class="room-info" id="roomInfo">
+                    <span>رمز الغرفة: </span>
+                    <span id="roomCode"></span>
+                    <button id="copyRoomCode" title="نسخ رمز الغرفة">📋</button>
+                </div>
+                
+                <div class="score-board">
+                    <div class="player-score">
+                        <span class="score-label" id="playerXName">اللاعب X</span>
+                        <span class="score" id="scoreX">0</span>
+                    </div>
+                    <div class="player-score">
+                        <span class="score-label" id="playerOName">اللاعب O</span>
+                        <span class="score" id="scoreO">0</span>
+                    </div>
+                    <div class="player-score">
+                        <span class="score-label">التعادل</span>
+                        <span class="score" id="scoreTie">0</span>
+                    </div>
+                </div>
+            </header>
+
+            <main>
+                <div class="game-modes" id="localGameModes" style="display: none;">
+                    <button class="mode-btn active" id="pvpMode">لاعب ضد لاعب</button>
+                    <button class="mode-btn" id="pvcMode">لاعب ضد الكمبيوتر</button>
+                </div>
+
+                <div class="difficulty-selector" id="difficultySelector" style="display: none;">
+                    <label>مستوى الصعوبة:</label>
+                    <select id="difficulty">
+                        <option value="easy">سهل</option>
+                        <option value="medium">متوسط</option>
+                        <option value="hard">صعب</option>
+                    </select>
+                </div>
+
+                <div class="online-status" id="onlineStatus">
+                    <div class="status-info">
+                        <span id="gameStatusText">في انتظار بدء اللعبة...</span>
+                        <button id="startGameBtn" style="display: none;">بدء اللعبة</button>
+                    </div>
+                </div>
+
+                <div class="game-status">
+                    <div class="current-player">
+                        <span id="currentPlayerText">دور اللاعب</span>
+                        <span class="player-symbol" id="currentPlayerSymbol">X</span>
+                    </div>
+                    <div class="game-controls">
+                        <button class="control-btn" id="resetBtn">🔄 إعادة تشغيل</button>
+                        <button class="control-btn" id="leaveRoomBtn">🚪 مغادرة الغرفة</button>
+                    </div>
+                </div>
+
+                <div class="game-board" id="gameBoard">
+                    <div class="cell" data-index="0"></div>
+                    <div class="cell" data-index="1"></div>
+                    <div class="cell" data-index="2"></div>
+                    <div class="cell" data-index="3"></div>
+                    <div class="cell" data-index="4"></div>
+                    <div class="cell" data-index="5"></div>
+                    <div class="cell" data-index="6"></div>
+                    <div class="cell" data-index="7"></div>
+                    <div class="cell" data-index="8"></div>
+                </div>
+
+                <!-- Online Chat -->
+                <div class="chat-section" id="chatSection" style="display: none;">
+                    <div class="chat-header">
+                        <h3>💬 الدردشة</h3>
+                        <button id="toggleChat">إخفاء</button>
+                    </div>
+                    <div class="chat-messages" id="chatMessages"></div>
+                    <div class="chat-input">
+                        <input type="text" id="chatInput" placeholder="اكتب رسالة..." maxlength="100">
+                        <button id="sendChatBtn">إرسال</button>
+                    </div>
+                </div>
+
+                <div class="game-result" id="gameResult">
+                    <div class="result-content">
+                        <div class="result-icon" id="resultIcon">🎉</div>
+                        <div class="result-text" id="resultText">اللاعب X فاز!</div>
+                        <div class="result-buttons">
+                            <button class="play-again-btn" id="playAgainBtn">لعب مرة أخرى</button>
+                            <button class="new-game-btn" id="newGameBtn">لعبة جديدة</button>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <div class="particles" id="particles"></div>
+    <div class="notifications" id="notifications"></div>
+    
+    <script src="online-game.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
