@@ -11,6 +11,10 @@ class OnlineGame {
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 5;
         
+        // إضافة متغيرات أسماء اللاعبين المحليين
+        this.localPlayerXName = 'اللاعب X';
+        this.localPlayerOName = 'اللاعب O';
+        
         this.initializeOnlineGame();
     }
     
@@ -274,6 +278,11 @@ class OnlineGame {
         const copyRoomCodeOnly = document.getElementById('copyRoomCodeOnly');
         const copyRoomCodeWithLink = document.getElementById('copyRoomCodeWithLink');
         
+        // أزرار إعدادات اللاعبين المحليين - جديد
+        const playersSettingsBtn = document.getElementById('playersSettingsBtn');
+        const applyPlayersNames = document.getElementById('applyPlayersNames');
+        const resetPlayersNames = document.getElementById('resetPlayersNames');
+        
         if (startGameBtn) {
             startGameBtn.addEventListener('click', () => this.startGame());
             console.log('✅ Start game button bound');
@@ -301,6 +310,22 @@ class OnlineGame {
             console.log('✅ Copy room code with link button bound');
         } else {
             console.error('❌ copyRoomCodeWithLink not found');
+        }
+        
+        // إعدادات اللاعبين المحليين - جديد
+        if (playersSettingsBtn) {
+            playersSettingsBtn.addEventListener('click', () => this.togglePlayersSettings());
+            console.log('✅ Players settings button bound');
+        }
+        
+        if (applyPlayersNames) {
+            applyPlayersNames.addEventListener('click', () => this.applyPlayersNames());
+            console.log('✅ Apply players names button bound');
+        }
+        
+        if (resetPlayersNames) {
+            resetPlayersNames.addEventListener('click', () => this.resetPlayersNames());
+            console.log('✅ Reset players names button bound');
         }
         
         // Chat
@@ -423,13 +448,19 @@ class OnlineGame {
         this.showLocalElements();
         this.hideGameModeButtons();
         
+        // إظهار زر إعدادات اللاعبين للعب المحلي - جديد
+        this.showPlayersSettingsButton();
+        
         if (!window.localGame) {
             window.localGame = new TicTacToe();
         } else {
             window.localGame.setGameMode('pvp');
         }
         
-        this.showNotification('بدأ اللعب المحلي 🎮', 'success');
+        // تطبيق أسماء اللاعبين المحفوظة
+        this.updateLocalPlayersDisplay();
+        
+        this.showNotification('بدأ اللعب المحلي 🎮\nيمكنك تعديل أسماء اللاعبين من الإعدادات', 'success');
     }
     
     startAIGame() {
@@ -441,6 +472,9 @@ class OnlineGame {
         this.showLocalElements();
         this.hideGameModeButtons();
         
+        // إظهار زر إعدادات اللاعبين للعب ضد الكمبيوتر - جديد
+        this.showPlayersSettingsButton();
+        
         if (!window.localGame) {
             window.localGame = new TicTacToe();
         }
@@ -451,13 +485,198 @@ class OnlineGame {
             }
         }, 100);
         
-        this.showNotification('بدأ اللعب ضد الكمبيوتر 🤖', 'success');
+        // تطبيق أسماء اللاعبين المحفوظة (اللاعب O سيكون "الكمبيوتر")
+        this.localPlayerOName = 'الكمبيوتر';
+        this.updateLocalPlayersDisplay();
+        
+        this.showNotification('بدأ اللعب ضد الكمبيوتر 🤖\nيمكنك تعديل اسم اللاعب من الإعدادات', 'success');
     }
     
     hideGameModeButtons() {
         const localGameModes = document.getElementById('localGameModes');
         if (localGameModes) {
             localGameModes.style.display = 'none';
+        }
+    }
+    
+    // دوال جديدة لإدارة أسماء اللاعبين المحليين
+    showPlayersSettingsButton() {
+        const playersSettingsBtn = document.getElementById('playersSettingsBtn');
+        if (playersSettingsBtn) {
+            playersSettingsBtn.style.display = 'inline-flex';
+        }
+    }
+    
+    hidePlayersSettingsButton() {
+        const playersSettingsBtn = document.getElementById('playersSettingsBtn');
+        if (playersSettingsBtn) {
+            playersSettingsBtn.style.display = 'none';
+        }
+    }
+    
+    togglePlayersSettings() {
+        const localPlayersSetup = document.getElementById('localPlayersSetup');
+        if (!localPlayersSetup) return;
+        
+        const isHidden = localPlayersSetup.style.display === 'none' || 
+                        localPlayersSetup.style.display === '';
+        
+        if (isHidden) {
+            localPlayersSetup.style.display = 'block';
+            // تحديث قيم الحقول بالأسماء الحالية
+            const playerXInput = document.getElementById('localPlayerXName');
+            const playerOInput = document.getElementById('localPlayerOName');
+            
+            if (playerXInput) playerXInput.value = this.localPlayerXName;
+            if (playerOInput) {
+                if (this.gameState === 'ai') {
+                    playerOInput.value = 'الكمبيوتر';
+                    playerOInput.disabled = true;
+                } else {
+                    playerOInput.value = this.localPlayerOName;
+                    playerOInput.disabled = false;
+                }
+            }
+            
+            this.showNotification('يمكنك الآن تعديل أسماء اللاعبين ⚙️', 'info');
+        } else {
+            localPlayersSetup.style.display = 'none';
+        }
+    }
+    
+    applyPlayersNames() {
+        const playerXInput = document.getElementById('localPlayerXName');
+        const playerOInput = document.getElementById('localPlayerOName');
+        
+        if (!playerXInput || !playerOInput) return;
+        
+        const newPlayerXName = playerXInput.value.trim();
+        const newPlayerOName = playerOInput.value.trim();
+        
+        // التحقق من صحة الأسماء
+        if (newPlayerXName.length < 2) {
+            this.showNotification('اسم اللاعب X يجب أن يكون أكثر من حرفين', 'error');
+            return;
+        }
+        
+        if (newPlayerOName.length < 2 && this.gameState !== 'ai') {
+            this.showNotification('اسم اللاعب O يجب أن يكون أكثر من حرفين', 'error');
+            return;
+        }
+        
+        if (newPlayerXName.length > 15) {
+            this.showNotification('اسم اللاعب X طويل جداً', 'error');
+            return;
+        }
+        
+        if (newPlayerOName.length > 15) {
+            this.showNotification('اسم اللاعب O طويل جداً', 'error');
+            return;
+        }
+        
+        // تطبيق الأسماء الجديدة
+        this.localPlayerXName = newPlayerXName;
+        
+        if (this.gameState === 'ai') {
+            this.localPlayerOName = 'الكمبيوتر';
+        } else {
+            this.localPlayerOName = newPlayerOName;
+        }
+        
+        // تحديث العرض
+        this.updateLocalPlayersDisplay();
+        
+        // إخفاء قسم الإعدادات
+        const localPlayersSetup = document.getElementById('localPlayersSetup');
+        if (localPlayersSetup) localPlayersSetup.style.display = 'none';
+        
+        // حفظ الأسماء في التخزين المحلي
+        this.saveLocalPlayersNames();
+        
+        this.showNotification('✅ تم تطبيق أسماء اللاعبين بنجاح!', 'success');
+    }
+    
+    resetPlayersNames() {
+        // إعادة تعيين الأسماء الافتراضية
+        this.localPlayerXName = 'اللاعب X';
+        
+        if (this.gameState === 'ai') {
+            this.localPlayerOName = 'الكمبيوتر';
+        } else {
+            this.localPlayerOName = 'اللاعب O';
+        }
+        
+        // تحديث حقول الإدخال
+        const playerXInput = document.getElementById('localPlayerXName');
+        const playerOInput = document.getElementById('localPlayerOName');
+        
+        if (playerXInput) playerXInput.value = this.localPlayerXName;
+        if (playerOInput) playerOInput.value = this.localPlayerOName;
+        
+        // تحديث العرض
+        this.updateLocalPlayersDisplay();
+        
+        // حفظ الأسماء المعاد تعيينها
+        this.saveLocalPlayersNames();
+        
+        this.showNotification('🔄 تم إعادة تعيين أسماء اللاعبين للافتراضية', 'info');
+    }
+    
+    updateLocalPlayersDisplay() {
+        const playerXNameElement = document.getElementById('playerXName');
+        const playerONameElement = document.getElementById('playerOName');
+        
+        if (playerXNameElement) playerXNameElement.textContent = this.localPlayerXName;
+        if (playerONameElement) playerONameElement.textContent = this.localPlayerOName;
+        
+        // تحديث النص الحالي للاعب في حالة اللعب المحلي
+        if (this.gameState === 'local' || this.gameState === 'ai') {
+            this.updateLocalCurrentPlayerDisplay();
+        }
+    }
+    
+    updateLocalCurrentPlayerDisplay() {
+        const currentPlayerText = document.getElementById('currentPlayerText');
+        const currentPlayerSymbol = document.getElementById('currentPlayerSymbol');
+        
+        if (!currentPlayerSymbol || !currentPlayerText) return;
+        
+        const currentSymbol = currentPlayerSymbol.textContent;
+        
+        if (currentSymbol === 'X') {
+            currentPlayerText.textContent = `دور ${this.localPlayerXName}`;
+        } else if (currentSymbol === 'O') {
+            currentPlayerText.textContent = `دور ${this.localPlayerOName}`;
+        }
+    }
+    
+    saveLocalPlayersNames() {
+        try {
+            const playersData = {
+                playerXName: this.localPlayerXName,
+                playerOName: this.localPlayerOName,
+                savedAt: new Date().toISOString()
+            };
+            localStorage.setItem('localPlayersNames', JSON.stringify(playersData));
+            console.log('💾 Players names saved to localStorage');
+        } catch (error) {
+            console.warn('⚠️ Could not save players names to localStorage:', error);
+        }
+    }
+    
+    loadLocalPlayersNames() {
+        try {
+            const savedData = localStorage.getItem('localPlayersNames');
+            if (savedData) {
+                const playersData = JSON.parse(savedData);
+                this.localPlayerXName = playersData.playerXName || 'اللاعب X';
+                this.localPlayerOName = playersData.playerOName || 'اللاعب O';
+                console.log('📂 Players names loaded from localStorage');
+            }
+        } catch (error) {
+            console.warn('⚠️ Could not load players names from localStorage:', error);
+            this.localPlayerXName = 'اللاعب X';
+            this.localPlayerOName = 'اللاعب O';
         }
     }
     
@@ -475,6 +694,7 @@ class OnlineGame {
         this.showGameArea();
         this.showOnlineElements();
         this.hideLocalElements();
+        this.hidePlayersSettingsButton(); // إخفاء زر الإعدادات في اللعب الأونلاين
         this.updateRoomInfo(room);
         
         if (isSpectator) {
@@ -660,13 +880,24 @@ class OnlineGame {
         }
         
         if (currentPlayerText) {
-            if (this.playerSymbol === currentPlayer) {
-                currentPlayerText.textContent = 'دورك';
+            if (this.gameState === 'local' || this.gameState === 'ai') {
+                // تحديث محسن للعب المحلي
+                if (currentPlayer === 'X') {
+                    currentPlayerText.textContent = `دور ${this.localPlayerXName}`;
+                } else {
+                    currentPlayerText.textContent = `دور ${this.localPlayerOName}`;
+                }
                 currentPlayerText.style.color = '#2ecc71';
-            } else {
-                const otherPlayer = this.currentRoom.players.find(p => p.symbol === currentPlayer);
-                currentPlayerText.textContent = `دور ${otherPlayer ? otherPlayer.name : currentPlayer}`;
-                currentPlayerText.style.color = '#6c757d';
+            } else if (this.currentRoom) {
+                // تحديث للعب الأونلاين
+                if (this.playerSymbol === currentPlayer) {
+                    currentPlayerText.textContent = 'دورك';
+                    currentPlayerText.style.color = '#2ecc71';
+                } else {
+                    const otherPlayer = this.currentRoom.players.find(p => p.symbol === currentPlayer);
+                    currentPlayerText.textContent = `دور ${otherPlayer ? otherPlayer.name : currentPlayer}`;
+                    currentPlayerText.style.color = '#6c757d';
+                }
             }
         }
     }
@@ -684,362 +915,3 @@ class OnlineGame {
             }
         });
     }
-    
-    highlightWinningCells(winningLine) {
-        if (!winningLine) return;
-        
-        winningLine.forEach(index => {
-            const cell = document.querySelector(`[data-index="${index}"]`);
-            if (cell) cell.classList.add('winning');
-        });
-    }
-    
-    resetGameBoard() {
-        document.querySelectorAll('.cell').forEach(cell => {
-            cell.textContent = '';
-            cell.classList.remove('x', 'o', 'winning', 'disabled');
-            cell.style.animation = '';
-        });
-        
-        const resultModal = document.getElementById('gameResult');
-        if (resultModal) resultModal.style.display = 'none';
-    }
-    
-    resetOnlineGame() {
-        this.resetGameBoard();
-        if (this.currentRoom) {
-            this.updateCurrentPlayerDisplay(this.currentRoom.currentPlayer);
-            this.updateCellStates(this.currentRoom);
-        }
-    }
-    
-    sendChatMessage() {
-        const chatInput = document.getElementById('chatInput');
-        if (!chatInput) return;
-        
-        const message = chatInput.value.trim();
-        if (message === '') return;
-        
-        this.socket.emit('sendChatMessage', message);
-        chatInput.value = '';
-    }
-    
-    addChatMessage(data) {
-        const chatMessages = document.getElementById('chatMessages');
-        if (!chatMessages) return;
-        
-        const messageDiv = document.createElement('div');
-        messageDiv.className = 'chat-message';
-        
-        const isOwnMessage = data.playerId === this.socket.id;
-        
-        messageDiv.innerHTML = `
-            <div class="sender">
-                <i class="fas ${isOwnMessage ? 'fa-user' : 'fa-user-friends'}"></i>
-                <span>${isOwnMessage ? 'أنت' : data.playerName}</span>
-            </div>
-            <div class="message">${this.escapeHtml(data.message)}</div>
-            <div class="timestamp">
-                <i class="fas fa-clock"></i>
-                <span>${new Date(data.timestamp).toLocaleTimeString('ar-SA')}</span>
-            </div>
-        `;
-        
-        chatMessages.appendChild(messageDiv);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-    
-    toggleChat() {
-        const chatSection = document.getElementById('chatSection');
-        const toggleBtn = document.getElementById('toggleChat');
-        
-        if (!chatSection || !toggleBtn) return;
-        
-        const chatMessages = chatSection.querySelector('.chat-messages');
-        const chatInput = chatSection.querySelector('.chat-input');
-        
-        if (chatMessages && chatInput) {
-            const isHidden = chatMessages.style.display === 'none' || 
-                           chatInput.style.display === 'none';
-            
-            if (isHidden) {
-                chatMessages.style.display = 'block';
-                chatInput.style.display = 'flex';
-                toggleBtn.innerHTML = '<i class="fas fa-eye-slash"></i><span>إخفاء</span>';
-                this.showNotification('تم إظهار الدردشة 💬', 'info');
-            } else {
-                chatMessages.style.display = 'none';
-                chatInput.style.display = 'none';
-                toggleBtn.innerHTML = '<i class="fas fa-eye"></i><span>إظهار الدردشة</span>';
-                this.showNotification('تم إخفاء الدردشة', 'info');
-            }
-        }
-    }
-    
-    leaveRoom() {
-        console.log('🚪 leaveRoom called');
-        this.socket.emit('leaveRoom');
-        this.gameState = 'menu';
-        this.roomId = '';
-        this.showMainMenu();
-        this.showNotification('غادرت الغرفة', 'info');
-    }
-    
-    backToMenu() {
-        console.log('🏠 backToMenu called');
-        if (this.gameState === 'playing' || this.gameState === 'waiting') {
-            this.leaveRoom();
-        } else {
-            this.gameState = 'menu';
-            this.showMainMenu();
-        }
-    }
-    
-    // دوال نسخ الأزرار الجديدة
-    copyRoomCodeOnly() {
-        console.log('📋 copyRoomCodeOnly called');
-        
-        if (!this.roomId) {
-            this.showNotification('لا يوجد رمز غرفة للنسخ', 'error');
-            return;
-        }
-        
-        navigator.clipboard.writeText(this.roomId).then(() => {
-            this.showNotification(`✅ تم نسخ رمز الغرفة: ${this.roomId}`, 'success');
-        }).catch(() => {
-            this.showNotification('❌ فشل في نسخ رمز الغرفة', 'error');
-        });
-    }
-    
-    copyRoomCodeWithLink() {
-        console.log('🔗 copyRoomCodeWithLink called');
-        
-        if (!this.roomId) {
-            this.showNotification('لا يوجد رمز غرفة للنسخ', 'error');
-            return;
-        }
-        
-        const currentDate = new Date().toLocaleDateString('ar-SA');
-        const currentTime = new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
-        
-        const message = `🎮 انضم للعب معي في لعبة X O الآن!
-
-🏠 رمز الغرفة: ${this.roomId}
-🔗 الرابط المباشر: ${window.location.origin}
-📅 تاريخ الدعوة: ${currentDate} - ${currentTime}
-
-📋 خطوات الانضمام:
-1️⃣ افتح الرابط المرفق
-2️⃣ أدخل اسمك في المربع  
-3️⃣ اختر "الانضمام لغرفة"
-4️⃣ أدخل رمز الغرفة: ${this.roomId}
-5️⃣ ابدأ اللعب واستمتع! 🚀
-
-⚡ ملاحظة: الغرفة متاحة الآن - انضم بسرعة!`;
-        
-        navigator.clipboard.writeText(message).then(() => {
-            this.showNotification('🎉 تم نسخ الرابط والتعليمات كاملة!\nأرسله لصديقك الآن 📤', 'success');
-        }).catch(() => {
-            // في حالة فشل النسخ، انسخ الرمز فقط
-            navigator.clipboard.writeText(this.roomId).then(() => {
-                this.showNotification('✅ تم نسخ رمز الغرفة فقط', 'success');
-            }).catch(() => {
-                this.showNotification('❌ فشل في نسخ المعلومات', 'error');
-            });
-        });
-    }
-    
-    // UI Management
-    showPlayerSetup() {
-        console.log('🔧 showPlayerSetup called');
-        this.hideAllScreens();
-        const playerSetup = document.getElementById('playerSetup');
-        if (playerSetup) {
-            playerSetup.style.display = 'block';
-            console.log('✅ Player setup screen shown');
-        } else {
-            console.error('❌ playerSetup element not found');
-        }
-        
-        const nameLoading = document.getElementById('nameLoading');
-        const setNameBtn = document.getElementById('setNameBtn');
-        if (nameLoading) nameLoading.style.display = 'none';
-        if (setNameBtn) setNameBtn.disabled = false;
-    }
-    
-    showMainMenu() {
-        console.log('🏠 showMainMenu called');
-        this.hideAllScreens();
-        const mainMenu = document.getElementById('mainMenu');
-        if (mainMenu) {
-            mainMenu.style.display = 'block';
-            console.log('✅ Main menu screen shown');
-        } else {
-            console.error('❌ mainMenu element not found');
-        }
-        
-        const currentPlayerName = document.getElementById('currentPlayerName');
-        if (currentPlayerName) currentPlayerName.textContent = this.playerName;
-    }
-    
-    showGameArea() {
-        console.log('🎮 showGameArea called');
-        this.hideAllScreens();
-        const gameArea = document.getElementById('gameArea');
-        if (gameArea) {
-            gameArea.style.display = 'block';
-            console.log('✅ Game area screen shown');
-        } else {
-            console.error('❌ gameArea element not found');
-        }
-    }
-    
-    hideAllScreens() {
-        const screens = ['playerSetup', 'mainMenu', 'roomSetup', 'gameArea'];
-        screens.forEach(screenId => {
-            const screen = document.getElementById(screenId);
-            if (screen) {
-                screen.style.display = 'none';
-            } else {
-                console.warn(`⚠️ Screen ${screenId} not found`);
-            }
-        });
-        
-        const roomLoading = document.getElementById('roomLoading');
-        const joinRoomConfirmBtn = document.getElementById('joinRoomConfirmBtn');
-        if (roomLoading) roomLoading.style.display = 'none';
-        if (joinRoomConfirmBtn) joinRoomConfirmBtn.disabled = false;
-    }
-    
-    showOnlineElements() {
-        const onlineElements = ['roomInfo', 'onlineStatus', 'chatSection', 'leaveRoomBtn'];
-        onlineElements.forEach(elementId => {
-            const element = document.getElementById(elementId);
-            if (element) element.style.display = element.tagName === 'DIV' ? 'block' : 'inline-flex';
-        });
-    }
-    
-    hideOnlineElements() {
-        const onlineElements = ['roomInfo', 'onlineStatus', 'chatSection', 'leaveRoomBtn'];
-        onlineElements.forEach(elementId => {
-            const element = document.getElementById(elementId);
-            if (element) element.style.display = 'none';
-        });
-    }
-    
-    showLocalElements() {
-        const localGameModes = document.getElementById('localGameModes');
-        const difficultySelector = document.getElementById('difficultySelector');
-        
-        if (localGameModes) {
-            localGameModes.style.display = 'none';
-        }
-        
-        if (difficultySelector) {
-            difficultySelector.style.display = this.gameState === 'ai' ? 'block' : 'none';
-        }
-    }
-    
-    hideLocalElements() {
-        const localElements = ['localGameModes', 'difficultySelector'];
-        localElements.forEach(elementId => {
-            const element = document.getElementById(elementId);
-            if (element) element.style.display = 'none';
-        });
-    }
-    
-    // Utility methods
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-    
-    playMoveSound() {
-        try {
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            
-            oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-            oscillator.type = 'sine';
-            
-            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
-            
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + 0.1);
-        } catch (e) {
-            console.warn('Could not play sound');
-        }
-    }
-    
-    playSound(type) {
-        const frequencies = {
-            win: 1000,
-            lose: 400,
-            tie: 600
-        };
-        
-        if (!frequencies[type]) return;
-        
-        try {
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            
-            oscillator.frequency.setValueAtTime(frequencies[type], audioContext.currentTime);
-            oscillator.type = 'sine';
-            
-            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-            
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + 0.3);
-        } catch (e) {
-            console.warn('Could not play sound');
-        }
-    }
-    
-    showNotification(message, type = 'info') {
-        const notificationsContainer = document.getElementById('notifications');
-        if (!notificationsContainer) return;
-        
-        const notification = document.createElement('div');
-        notification.className = `notification ${type}`;
-        
-        notification.innerHTML = message.replace(/\n/g, '<br>');
-        
-        notificationsContainer.appendChild(notification);
-        
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.style.animation = 'slideOutRight 0.3s ease forwards';
-                setTimeout(() => {
-                    if (notification.parentNode) {
-                        notification.parentNode.removeChild(notification);
-                    }
-                }, 300);
-            }
-        }, 4000);
-    }
-}
-
-// Initialize online game when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('🚀 DOM loaded, initializing online game...');
-    console.log('📅 Current Date:', new Date().toLocaleDateString('ar-SA'));
-    console.log('🕐 Current Time:', new Date().toLocaleTimeString('ar-SA'));
-    
-    // تأخير قصير للتأكد من تحميل جميع العناصر
-    setTimeout(() => {
-        window.onlineGame = new OnlineGame();
-        console.log('✅ Online game initialized successfully');
-    }, 100);
-});
