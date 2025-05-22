@@ -18,25 +18,21 @@ class OnlineGame {
         this.initializeSocket();
         this.bindOnlineEvents();
         this.showPlayerSetup();
-        this.handlePageVisibility(); // جديد: للتعامل مع تبديل التاب
+        this.handlePageVisibility();
     }
     
-    // جديد: التعامل مع تبديل التاب وعدم الخروج من الغرفة
     handlePageVisibility() {
-        // منع الخروج عند تبديل التاب
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
                 console.log('📱 Page hidden, maintaining connection...');
             } else {
                 console.log('👀 Page visible again');
-                // إعادة الاتصال إذا انقطع
                 if (this.socket && !this.socket.connected && this.gameState !== 'setup') {
                     this.attemptReconnect();
                 }
             }
         });
 
-        // منع إغلاق الصفحة بدون تأكيد أثناء اللعب
         window.addEventListener('beforeunload', (e) => {
             if (this.gameState === 'playing' || this.gameState === 'waiting') {
                 e.preventDefault();
@@ -46,7 +42,6 @@ class OnlineGame {
         });
     }
 
-    // جديد: إعادة الاتصال التلقائي
     attemptReconnect() {
         if (this.isReconnecting || this.reconnectAttempts >= this.maxReconnectAttempts) {
             return;
@@ -63,7 +58,7 @@ class OnlineGame {
                 this.socket.connect();
             }
             this.isReconnecting = false;
-        }, 2000 * this.reconnectAttempts); // تأخير متزايد
+        }, 2000 * this.reconnectAttempts);
     }
     
     initializeSocket() {
@@ -72,8 +67,8 @@ class OnlineGame {
             upgrade: true,
             rememberUpgrade: true,
             timeout: 20000,
-            forceNew: false, // جديد: عدم إنشاء اتصال جديد دائماً
-            reconnection: true, // جديد: تفعيل إعادة الاتصال التلقائي
+            forceNew: false,
+            reconnection: true,
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
             maxReconnectionAttempts: 5
@@ -81,10 +76,15 @@ class OnlineGame {
         
         this.socket.on('connect', () => {
             console.log('✅ Connected to server');
-            this.reconnectAttempts = 0; // إعادة تعيين محاولات الاتصال
+            this.reconnectAttempts = 0;
             this.showNotification('متصل بالخادم ✅', 'success');
             
-            // إعادة الانضمام للغرفة إذا كانت موجودة
+            // إعادة تعيين اسم اللاعب عند إعادة الاتصال
+            if (this.playerName && this.gameState !== 'setup') {
+                console.log('🔄 Re-setting player name after reconnect:', this.playerName);
+                this.socket.emit('setPlayerName', this.playerName);
+            }
+            
             if (this.roomId && this.gameState !== 'setup') {
                 console.log('🏠 Rejoining room:', this.roomId);
                 this.socket.emit('joinRoom', this.roomId);
@@ -94,7 +94,6 @@ class OnlineGame {
         this.socket.on('disconnect', (reason) => {
             console.log('❌ Disconnected from server:', reason);
             
-            // عدم العودة للإعداد إذا كان الانقطاع مؤقت
             if (reason === 'io server disconnect') {
                 this.showNotification('تم قطع الاتصال من الخادم', 'error');
                 this.gameState = 'setup';
@@ -297,6 +296,16 @@ class OnlineGame {
     }
     
     createRoom() {
+        // التأكد من وجود اسم اللاعب قبل إنشاء الغرفة
+        if (!this.playerName) {
+            console.log('❌ No player name found, requesting to set name first');
+            this.showNotification('يرجى تعيين اسم اللاعب أولاً', 'error');
+            this.gameState = 'setup';
+            this.showPlayerSetup();
+            return;
+        }
+        
+        console.log('🏠 Creating room for player:', this.playerName);
         this.socket.emit('createRoom');
         this.showNotification('جاري إنشاء الغرفة...', 'info');
     }
@@ -327,41 +336,33 @@ class OnlineGame {
         this.socket.emit('joinRoom', roomCode);
     }
     
-    // محسن: إزالة تبديل الأوضاع داخل اللعبة
     startLocalGame() {
         this.gameState = 'local';
         this.showGameArea();
         this.hideOnlineElements();
         this.showLocalElements();
-        
-        // إخفاء أزرار تبديل الأوضاع نهائياً
         this.hideGameModeButtons();
         
         if (!window.localGame) {
             window.localGame = new TicTacToe();
         } else {
-            // إعادة تعيين اللعبة للوضع المحلي
             window.localGame.setGameMode('pvp');
         }
         
         this.showNotification('بدأ اللعب المحلي 🎮', 'success');
     }
     
-    // محسن: إزالة تبديل الأوضاع داخل اللعبة
     startAIGame() {
         this.gameState = 'ai';
         this.showGameArea();
         this.hideOnlineElements();
         this.showLocalElements();
-        
-        // إخفاء أزرار تبديل الأوضاع نهائياً
         this.hideGameModeButtons();
         
         if (!window.localGame) {
             window.localGame = new TicTacToe();
         }
         
-        // تعيين وضع الذكاء الاصطناعي مباشرة
         setTimeout(() => {
             if (window.localGame) {
                 window.localGame.setGameMode('pvc');
@@ -371,7 +372,6 @@ class OnlineGame {
         this.showNotification('بدأ اللعب ضد الكمبيوتر 🤖', 'success');
     }
     
-    // جديد: إخفاء أزرار تبديل الأوضاع
     hideGameModeButtons() {
         const localGameModes = document.getElementById('localGameModes');
         if (localGameModes) {
@@ -415,15 +415,20 @@ class OnlineGame {
             room.players.forEach(player => {
                 const playerTag = document.createElement('div');
                 playerTag.className = `player-tag ${player.isHost ? 'host' : ''}`;
-                playerTag.textContent = `${player.name} (${player.symbol})`;
-                if (player.isHost) playerTag.textContent += ' 👑';
+                playerTag.innerHTML = `
+                    <i class="fas ${player.isHost ? 'fa-crown' : 'fa-user'}"></i>
+                    <span>${player.name} (${player.symbol})</span>
+                `;
                 playersList.appendChild(playerTag);
             });
             
             room.spectators.forEach(spectator => {
                 const spectatorTag = document.createElement('div');
                 spectatorTag.className = 'player-tag';
-                spectatorTag.textContent = `${spectator.name} 👁️`;
+                spectatorTag.innerHTML = `
+                    <i class="fas fa-eye"></i>
+                    <span>${spectator.name}</span>
+                `;
                 playersList.appendChild(spectatorTag);
             });
         }
@@ -437,7 +442,7 @@ class OnlineGame {
         } else if (room.players.length === 2) {
             if (gameStatusText) gameStatusText.textContent = 'جاهز للبدء!';
             if (startGameBtn && this.isHost) {
-                startGameBtn.style.display = 'inline-block';
+                startGameBtn.style.display = 'inline-flex';
             }
         } else {
             if (gameStatusText) gameStatusText.textContent = 'في انتظار لاعب آخر...';
@@ -530,7 +535,9 @@ class OnlineGame {
             const winnerPlayer = this.currentRoom.players.find(p => p.symbol === winner);
             const isWinner = this.playerSymbol === winner;
             
-            if (resultIcon) resultIcon.textContent = isWinner ? '🏆' : '😔';
+            if (resultIcon) {
+                resultIcon.innerHTML = isWinner ? '<i class="fas fa-trophy"></i>' : '<i class="fas fa-sad-tear"></i>';
+            }
             if (resultText) {
                 resultText.textContent = isWinner ? 'فزت! 🎉' : `فاز ${winnerPlayer.name}`;
                 resultText.style.color = isWinner ? '#2ecc71' : '#e74c3c';
@@ -538,7 +545,7 @@ class OnlineGame {
             
             this.playSound(isWinner ? 'win' : 'lose');
         } else if (result.type === 'tie') {
-            if (resultIcon) resultIcon.textContent = '🤝';
+            if (resultIcon) resultIcon.innerHTML = '<i class="fas fa-handshake"></i>';
             if (resultText) {
                 resultText.textContent = 'تعادل!';
                 resultText.style.color = '#f39c12';
@@ -644,23 +651,27 @@ class OnlineGame {
         const isOwnMessage = data.playerId === this.socket.id;
         
         messageDiv.innerHTML = `
-            <div class="sender">${isOwnMessage ? 'أنت' : data.playerName}</div>
+            <div class="sender">
+                <i class="fas ${isOwnMessage ? 'fa-user' : 'fa-user-friends'}"></i>
+                <span>${isOwnMessage ? 'أنت' : data.playerName}</span>
+            </div>
             <div class="message">${this.escapeHtml(data.message)}</div>
-            <div class="timestamp">${new Date(data.timestamp).toLocaleTimeString('ar-SA')}</div>
+            <div class="timestamp">
+                <i class="fas fa-clock"></i>
+                <span>${new Date(data.timestamp).toLocaleTimeString('ar-SA')}</span>
+            </div>
         `;
         
         chatMessages.appendChild(messageDiv);
         chatMessages.scrollTop = chatMessages.scrollHeight;
     }
     
-    // محسن: إصلاح مشكلة إظهار/إخفاء الدردشة
     toggleChat() {
         const chatSection = document.getElementById('chatSection');
         const toggleBtn = document.getElementById('toggleChat');
         
         if (!chatSection || !toggleBtn) return;
         
-        // التحقق من الحالة الحالية
         const chatMessages = chatSection.querySelector('.chat-messages');
         const chatInput = chatSection.querySelector('.chat-input');
         
@@ -669,16 +680,14 @@ class OnlineGame {
                            chatInput.style.display === 'none';
             
             if (isHidden) {
-                // إظهار الدردشة
                 chatMessages.style.display = 'block';
                 chatInput.style.display = 'flex';
-                toggleBtn.textContent = 'إخفاء';
+                toggleBtn.innerHTML = '<i class="fas fa-eye-slash"></i><span>إخفاء</span>';
                 this.showNotification('تم إظهار الدردشة 💬', 'info');
             } else {
-                // إخفاء الدردشة
                 chatMessages.style.display = 'none';
                 chatInput.style.display = 'none';
-                toggleBtn.textContent = 'إظهار الدردشة';
+                toggleBtn.innerHTML = '<i class="fas fa-eye"></i><span>إظهار الدردشة</span>';
                 this.showNotification('تم إخفاء الدردشة', 'info');
             }
         }
@@ -687,7 +696,7 @@ class OnlineGame {
     leaveRoom() {
         this.socket.emit('leaveRoom');
         this.gameState = 'menu';
-        this.roomId = ''; // إعادة تعيين معرف الغرفة
+        this.roomId = '';
         this.showMainMenu();
         this.showNotification('غادرت الغرفة', 'info');
     }
@@ -701,7 +710,6 @@ class OnlineGame {
         }
     }
     
-    // محسن: نسخ رمز الغرفة مع تنسيق أفضل
     copyRoomCode() {
         if (!this.roomId) return;
         
@@ -710,7 +718,6 @@ class OnlineGame {
         navigator.clipboard.writeText(textToCopy).then(() => {
             this.showNotification('تم نسخ معلومات الغرفة 📋\nأرسلها لصديقك!', 'success');
         }).catch(() => {
-            // نسخ رمز الغرفة فقط في حالة فشل النسخ المفصل
             navigator.clipboard.writeText(this.roomId).then(() => {
                 this.showNotification('تم نسخ رمز الغرفة 📋', 'success');
             }).catch(() => {
@@ -760,131 +767,4 @@ class OnlineGame {
     }
     
     showOnlineElements() {
-        const onlineElements = ['roomInfo', 'onlineStatus', 'chatSection', 'leaveRoomBtn'];
-        onlineElements.forEach(elementId => {
-            const element = document.getElementById(elementId);
-            if (element) element.style.display = element.tagName === 'DIV' ? 'block' : 'inline-block';
-        });
-    }
-    
-    hideOnlineElements() {
-        const onlineElements = ['roomInfo', 'onlineStatus', 'chatSection', 'leaveRoomBtn'];
-        onlineElements.forEach(elementId => {
-            const element = document.getElementById(elementId);
-            if (element) element.style.display = 'none';
-        });
-    }
-    
-    // محسن: إظهار العناصر المحلية مع إخفاء/إظهار مستوى الصعوبة حسب الوضع
-    showLocalElements() {
-        const localGameModes = document.getElementById('localGameModes');
-        const difficultySelector = document.getElementById('difficultySelector');
-        
-        // إخفاء أزرار تبديل الأوضاع دائماً
-        if (localGameModes) {
-            localGameModes.style.display = 'none';
-        }
-        
-        // إظهار مستوى الصعوبة فقط في وضع الذكاء الاصطناعي
-        if (difficultySelector) {
-            difficultySelector.style.display = this.gameState === 'ai' ? 'block' : 'none';
-        }
-    }
-    
-    hideLocalElements() {
-        const localElements = ['localGameModes', 'difficultySelector'];
-        localElements.forEach(elementId => {
-            const element = document.getElementById(elementId);
-            if (element) element.style.display = 'none';
-        });
-    }
-    
-    // Utility methods
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-    
-    playMoveSound() {
-        try {
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            
-            oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-            oscillator.type = 'sine';
-            
-            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
-            
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + 0.1);
-        } catch (e) {
-            console.warn('Could not play sound');
-        }
-    }
-    
-    playSound(type) {
-        const frequencies = {
-            win: 1000,
-            lose: 400,
-            tie: 600
-        };
-        
-        if (!frequencies[type]) return;
-        
-        try {
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            
-            oscillator.frequency.setValueAtTime(frequencies[type], audioContext.currentTime);
-            oscillator.type = 'sine';
-            
-            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-            
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + 0.3);
-        } catch (e) {
-            console.warn('Could not play sound');
-        }
-    }
-    
-    showNotification(message, type = 'info') {
-        const notificationsContainer = document.getElementById('notifications');
-        if (!notificationsContainer) return;
-        
-        const notification = document.createElement('div');
-        notification.className = `notification ${type}`;
-        
-        // دعم الرسائل متعددة الأسطر
-        notification.innerHTML = message.replace(/\n/g, '<br>');
-        
-        notificationsContainer.appendChild(notification);
-        
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.style.animation = 'slideOutRight 0.3s ease forwards';
-                setTimeout(() => {
-                    if (notification.parentNode) {
-                        notification.parentNode.removeChild(notification);
-                    }
-                }, 300);
-            }
-        }, 4000); // وقت أطول للرسائل المهمة
-    }
-}
-
-// Initialize online game when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('🚀 DOM loaded, initializing online game...');
-    window.onlineGame = new OnlineGame();
-});
+        const onlineElements = ['roomInfo', 'onlineStatus', 'chatSection',
