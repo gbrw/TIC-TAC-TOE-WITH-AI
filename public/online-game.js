@@ -7,6 +7,9 @@ class OnlineGame {
         this.playerSymbol = '';
         this.gameState = 'setup';
         this.currentRoom = null;
+        this.isReconnecting = false;
+        this.reconnectAttempts = 0;
+        this.maxReconnectAttempts = 5;
         
         this.initializeOnlineGame();
     }
@@ -15,29 +18,100 @@ class OnlineGame {
         this.initializeSocket();
         this.bindOnlineEvents();
         this.showPlayerSetup();
+        this.handlePageVisibility(); // جديد: للتعامل مع تبديل التاب
+    }
+    
+    // جديد: التعامل مع تبديل التاب وعدم الخروج من الغرفة
+    handlePageVisibility() {
+        // منع الخروج عند تبديل التاب
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                console.log('📱 Page hidden, maintaining connection...');
+            } else {
+                console.log('👀 Page visible again');
+                // إعادة الاتصال إذا انقطع
+                if (this.socket && !this.socket.connected && this.gameState !== 'setup') {
+                    this.attemptReconnect();
+                }
+            }
+        });
+
+        // منع إغلاق الصفحة بدون تأكيد أثناء اللعب
+        window.addEventListener('beforeunload', (e) => {
+            if (this.gameState === 'playing' || this.gameState === 'waiting') {
+                e.preventDefault();
+                e.returnValue = 'هل أنت متأكد من مغادرة اللعبة؟ ستفقد التقدم الحالي.';
+                return e.returnValue;
+            }
+        });
+    }
+
+    // جديد: إعادة الاتصال التلقائي
+    attemptReconnect() {
+        if (this.isReconnecting || this.reconnectAttempts >= this.maxReconnectAttempts) {
+            return;
+        }
+
+        this.isReconnecting = true;
+        this.reconnectAttempts++;
+        
+        console.log(`🔄 Attempting to reconnect... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+        this.showNotification(`جاري إعادة الاتصال... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`, 'warning');
+
+        setTimeout(() => {
+            if (this.socket) {
+                this.socket.connect();
+            }
+            this.isReconnecting = false;
+        }, 2000 * this.reconnectAttempts); // تأخير متزايد
     }
     
     initializeSocket() {
         this.socket = io({
             transports: ['websocket', 'polling'],
             upgrade: true,
-            rememberUpgrade: true
+            rememberUpgrade: true,
+            timeout: 20000,
+            forceNew: false, // جديد: عدم إنشاء اتصال جديد دائماً
+            reconnection: true, // جديد: تفعيل إعادة الاتصال التلقائي
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            maxReconnectionAttempts: 5
         });
         
         this.socket.on('connect', () => {
-            console.log('Connected to server');
+            console.log('✅ Connected to server');
+            this.reconnectAttempts = 0; // إعادة تعيين محاولات الاتصال
             this.showNotification('متصل بالخادم ✅', 'success');
+            
+            // إعادة الانضمام للغرفة إذا كانت موجودة
+            if (this.roomId && this.gameState !== 'setup') {
+                console.log('🏠 Rejoining room:', this.roomId);
+                this.socket.emit('joinRoom', this.roomId);
+            }
         });
         
-        this.socket.on('disconnect', () => {
-            console.log('Disconnected from server');
-            this.showNotification('انقطع الاتصال بالخادم ❌', 'error');
-            this.gameState = 'setup';
-            this.showPlayerSetup();
+        this.socket.on('disconnect', (reason) => {
+            console.log('❌ Disconnected from server:', reason);
+            
+            // عدم العودة للإعداد إذا كان الانقطاع مؤقت
+            if (reason === 'io server disconnect') {
+                this.showNotification('تم قطع الاتصال من الخادم', 'error');
+                this.gameState = 'setup';
+                this.showPlayerSetup();
+            } else {
+                this.showNotification('انقطع الاتصال - جاري المحاولة...', 'warning');
+                this.attemptReconnect();
+            }
+        });
+        
+        this.socket.on('reconnect', (attemptNumber) => {
+            console.log('🔄 Reconnected after', attemptNumber, 'attempts');
+            this.showNotification('تم إعادة الاتصال بنجاح! 🎉', 'success');
         });
         
         this.socket.on('connect_error', (error) => {
-            console.error('Connection error:', error);
+            console.error('❌ Connection error:', error);
             this.showNotification('خطأ في الاتصال بالخادم', 'error');
         });
         
@@ -122,8 +196,6 @@ class OnlineGame {
         if (setNameBtn) {
             setNameBtn.addEventListener('click', () => this.setPlayerName());
             console.log('✅ Set Name button event bound');
-        } else {
-            console.error('❌ setNameBtn not found');
         }
         
         if (playerNameInput) {
@@ -131,8 +203,6 @@ class OnlineGame {
                 if (e.key === 'Enter') this.setPlayerName();
             });
             console.log('✅ Player name input event bound');
-        } else {
-            console.error('❌ playerNameInput not found');
         }
         
         // Main menu buttons
@@ -170,7 +240,7 @@ class OnlineGame {
         if (backToMenuFromGameBtn) backToMenuFromGameBtn.addEventListener('click', () => this.backToMenu());
         if (copyRoomCode) copyRoomCode.addEventListener('click', () => this.copyRoomCode());
         
-        // Chat
+        // Chat - محسن: إصلاح مشكلة إظهار/إخفاء الدردشة
         const sendChatBtn = document.getElementById('sendChatBtn');
         const chatInput = document.getElementById('chatInput');
         const toggleChat = document.getElementById('toggleChat');
@@ -257,33 +327,56 @@ class OnlineGame {
         this.socket.emit('joinRoom', roomCode);
     }
     
+    // محسن: إزالة تبديل الأوضاع داخل اللعبة
     startLocalGame() {
         this.gameState = 'local';
         this.showGameArea();
         this.hideOnlineElements();
         this.showLocalElements();
         
+        // إخفاء أزرار تبديل الأوضاع نهائياً
+        this.hideGameModeButtons();
+        
         if (!window.localGame) {
             window.localGame = new TicTacToe();
+        } else {
+            // إعادة تعيين اللعبة للوضع المحلي
+            window.localGame.setGameMode('pvp');
         }
         
         this.showNotification('بدأ اللعب المحلي 🎮', 'success');
     }
     
+    // محسن: إزالة تبديل الأوضاع داخل اللعبة
     startAIGame() {
         this.gameState = 'ai';
         this.showGameArea();
         this.hideOnlineElements();
         this.showLocalElements();
         
+        // إخفاء أزرار تبديل الأوضاع نهائياً
+        this.hideGameModeButtons();
+        
         if (!window.localGame) {
             window.localGame = new TicTacToe();
         }
         
-        const pvcMode = document.getElementById('pvcMode');
-        if (pvcMode) pvcMode.click();
+        // تعيين وضع الذكاء الاصطناعي مباشرة
+        setTimeout(() => {
+            if (window.localGame) {
+                window.localGame.setGameMode('pvc');
+            }
+        }, 100);
         
         this.showNotification('بدأ اللعب ضد الكمبيوتر 🤖', 'success');
+    }
+    
+    // جديد: إخفاء أزرار تبديل الأوضاع
+    hideGameModeButtons() {
+        const localGameModes = document.getElementById('localGameModes');
+        if (localGameModes) {
+            localGameModes.style.display = 'none';
+        }
     }
     
     handleRoomJoined(room, isSpectator = false) {
@@ -560,20 +653,41 @@ class OnlineGame {
         chatMessages.scrollTop = chatMessages.scrollHeight;
     }
     
+    // محسن: إصلاح مشكلة إظهار/إخفاء الدردشة
     toggleChat() {
         const chatSection = document.getElementById('chatSection');
         const toggleBtn = document.getElementById('toggleChat');
         
         if (!chatSection || !toggleBtn) return;
         
-        const isHidden = chatSection.style.display === 'none';
-        chatSection.style.display = isHidden ? 'block' : 'none';
-        toggleBtn.textContent = isHidden ? 'إخفاء' : 'إظهار';
+        // التحقق من الحالة الحالية
+        const chatMessages = chatSection.querySelector('.chat-messages');
+        const chatInput = chatSection.querySelector('.chat-input');
+        
+        if (chatMessages && chatInput) {
+            const isHidden = chatMessages.style.display === 'none' || 
+                           chatInput.style.display === 'none';
+            
+            if (isHidden) {
+                // إظهار الدردشة
+                chatMessages.style.display = 'block';
+                chatInput.style.display = 'flex';
+                toggleBtn.textContent = 'إخفاء';
+                this.showNotification('تم إظهار الدردشة 💬', 'info');
+            } else {
+                // إخفاء الدردشة
+                chatMessages.style.display = 'none';
+                chatInput.style.display = 'none';
+                toggleBtn.textContent = 'إظهار الدردشة';
+                this.showNotification('تم إخفاء الدردشة', 'info');
+            }
+        }
     }
     
     leaveRoom() {
         this.socket.emit('leaveRoom');
         this.gameState = 'menu';
+        this.roomId = ''; // إعادة تعيين معرف الغرفة
         this.showMainMenu();
         this.showNotification('غادرت الغرفة', 'info');
     }
@@ -587,13 +701,21 @@ class OnlineGame {
         }
     }
     
+    // محسن: نسخ رمز الغرفة مع تنسيق أفضل
     copyRoomCode() {
         if (!this.roomId) return;
         
-        navigator.clipboard.writeText(this.roomId).then(() => {
-            this.showNotification('تم نسخ رمز الغرفة 📋', 'success');
+        const textToCopy = `انضم للعب معي! 🎮\nرمز الغرفة: ${this.roomId}\nالرابط: ${window.location.origin}`;
+        
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            this.showNotification('تم نسخ معلومات الغرفة 📋\nأرسلها لصديقك!', 'success');
         }).catch(() => {
-            this.showNotification('فشل في نسخ رمز الغرفة', 'error');
+            // نسخ رمز الغرفة فقط في حالة فشل النسخ المفصل
+            navigator.clipboard.writeText(this.roomId).then(() => {
+                this.showNotification('تم نسخ رمز الغرفة 📋', 'success');
+            }).catch(() => {
+                this.showNotification('فشل في نسخ رمز الغرفة', 'error');
+            });
         });
     }
     
@@ -653,12 +775,20 @@ class OnlineGame {
         });
     }
     
+    // محسن: إظهار العناصر المحلية مع إخفاء/إظهار مستوى الصعوبة حسب الوضع
     showLocalElements() {
-        const localElements = ['localGameModes', 'difficultySelector'];
-        localElements.forEach(elementId => {
-            const element = document.getElementById(elementId);
-            if (element) element.style.display = 'block';
-        });
+        const localGameModes = document.getElementById('localGameModes');
+        const difficultySelector = document.getElementById('difficultySelector');
+        
+        // إخفاء أزرار تبديل الأوضاع دائماً
+        if (localGameModes) {
+            localGameModes.style.display = 'none';
+        }
+        
+        // إظهار مستوى الصعوبة فقط في وضع الذكاء الاصطناعي
+        if (difficultySelector) {
+            difficultySelector.style.display = this.gameState === 'ai' ? 'block' : 'none';
+        }
     }
     
     hideLocalElements() {
@@ -734,7 +864,9 @@ class OnlineGame {
         
         const notification = document.createElement('div');
         notification.className = `notification ${type}`;
-        notification.textContent = message;
+        
+        // دعم الرسائل متعددة الأسطر
+        notification.innerHTML = message.replace(/\n/g, '<br>');
         
         notificationsContainer.appendChild(notification);
         
@@ -747,7 +879,7 @@ class OnlineGame {
                     }
                 }, 300);
             }
-        }, 3000);
+        }, 4000); // وقت أطول للرسائل المهمة
     }
 }
 
