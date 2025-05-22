@@ -79,7 +79,6 @@ class OnlineGame {
             this.reconnectAttempts = 0;
             this.showNotification('متصل بالخادم ✅', 'success');
             
-            // إعادة تعيين اسم اللاعب عند إعادة الاتصال
             if (this.playerName && this.gameState !== 'setup') {
                 console.log('🔄 Re-setting player name after reconnect:', this.playerName);
                 this.socket.emit('setPlayerName', this.playerName);
@@ -188,6 +187,8 @@ class OnlineGame {
     }
     
     bindOnlineEvents() {
+        console.log('🎯 Binding online events...');
+        
         // Player name setup
         const setNameBtn = document.getElementById('setNameBtn');
         const playerNameInput = document.getElementById('playerNameInput');
@@ -195,6 +196,8 @@ class OnlineGame {
         if (setNameBtn) {
             setNameBtn.addEventListener('click', () => this.setPlayerName());
             console.log('✅ Set Name button event bound');
+        } else {
+            console.error('❌ setNameBtn not found');
         }
         
         if (playerNameInput) {
@@ -202,6 +205,8 @@ class OnlineGame {
                 if (e.key === 'Enter') this.setPlayerName();
             });
             console.log('✅ Player name input event bound');
+        } else {
+            console.error('❌ playerNameInput not found');
         }
         
         // Main menu buttons
@@ -210,23 +215,55 @@ class OnlineGame {
         const localGameBtn = document.getElementById('localGameBtn');
         const aiGameBtn = document.getElementById('aiGameBtn');
         
-        if (createRoomBtn) createRoomBtn.addEventListener('click', () => this.createRoom());
-        if (joinRoomBtn) joinRoomBtn.addEventListener('click', () => this.showJoinRoom());
-        if (localGameBtn) localGameBtn.addEventListener('click', () => this.startLocalGame());
-        if (aiGameBtn) aiGameBtn.addEventListener('click', () => this.startAIGame());
+        if (createRoomBtn) {
+            createRoomBtn.addEventListener('click', () => this.createRoom());
+            console.log('✅ Create room button bound');
+        } else {
+            console.error('❌ createRoomBtn not found');
+        }
+        
+        if (joinRoomBtn) {
+            joinRoomBtn.addEventListener('click', () => this.showJoinRoom());
+            console.log('✅ Join room button bound');
+        } else {
+            console.error('❌ joinRoomBtn not found');
+        }
+        
+        if (localGameBtn) {
+            localGameBtn.addEventListener('click', () => this.startLocalGame());
+            console.log('✅ Local game button bound');
+        } else {
+            console.error('❌ localGameBtn not found');
+        }
+        
+        if (aiGameBtn) {
+            aiGameBtn.addEventListener('click', () => this.startAIGame());
+            console.log('✅ AI game button bound');
+        } else {
+            console.error('❌ aiGameBtn not found');
+        }
         
         // Room setup
         const joinRoomConfirmBtn = document.getElementById('joinRoomConfirmBtn');
         const roomCodeInput = document.getElementById('roomCodeInput');
         const backToMenuBtn = document.getElementById('backToMenuBtn');
         
-        if (joinRoomConfirmBtn) joinRoomConfirmBtn.addEventListener('click', () => this.joinRoom());
+        if (joinRoomConfirmBtn) {
+            joinRoomConfirmBtn.addEventListener('click', () => this.joinRoom());
+            console.log('✅ Join room confirm button bound');
+        }
+        
         if (roomCodeInput) {
             roomCodeInput.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') this.joinRoom();
             });
+            console.log('✅ Room code input bound');
         }
-        if (backToMenuBtn) backToMenuBtn.addEventListener('click', () => this.showMainMenu());
+        
+        if (backToMenuBtn) {
+            backToMenuBtn.addEventListener('click', () => this.showMainMenu());
+            console.log('✅ Back to menu button bound');
+        }
         
         // Game controls
         const startGameBtn = document.getElementById('startGameBtn');
@@ -234,28 +271,53 @@ class OnlineGame {
         const backToMenuFromGameBtn = document.getElementById('backToMenuFromGameBtn');
         const copyRoomCode = document.getElementById('copyRoomCode');
         
-        if (startGameBtn) startGameBtn.addEventListener('click', () => this.startGame());
-        if (leaveRoomBtn) leaveRoomBtn.addEventListener('click', () => this.leaveRoom());
-        if (backToMenuFromGameBtn) backToMenuFromGameBtn.addEventListener('click', () => this.backToMenu());
-        if (copyRoomCode) copyRoomCode.addEventListener('click', () => this.copyRoomCode());
+        if (startGameBtn) {
+            startGameBtn.addEventListener('click', () => this.startGame());
+            console.log('✅ Start game button bound');
+        }
         
-        // Chat - محسن: إصلاح مشكلة إظهار/إخفاء الدردشة
+        if (leaveRoomBtn) {
+            leaveRoomBtn.addEventListener('click', () => this.leaveRoom());
+            console.log('✅ Leave room button bound');
+        }
+        
+        if (backToMenuFromGameBtn) {
+            backToMenuFromGameBtn.addEventListener('click', () => this.backToMenu());
+            console.log('✅ Back to menu from game button bound');
+        }
+        
+        if (copyRoomCode) {
+            copyRoomCode.addEventListener('click', () => this.copyRoomCode());
+            console.log('✅ Copy room code button bound');
+        }
+        
+        // Chat
         const sendChatBtn = document.getElementById('sendChatBtn');
         const chatInput = document.getElementById('chatInput');
         const toggleChat = document.getElementById('toggleChat');
         
-        if (sendChatBtn) sendChatBtn.addEventListener('click', () => this.sendChatMessage());
+        if (sendChatBtn) {
+            sendChatBtn.addEventListener('click', () => this.sendChatMessage());
+            console.log('✅ Send chat button bound');
+        }
+        
         if (chatInput) {
             chatInput.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') this.sendChatMessage();
             });
+            console.log('✅ Chat input bound');
         }
-        if (toggleChat) toggleChat.addEventListener('click', () => this.toggleChat());
+        
+        if (toggleChat) {
+            toggleChat.addEventListener('click', () => this.toggleChat());
+            console.log('✅ Toggle chat button bound');
+        }
         
         // Game board
-        document.querySelectorAll('.cell').forEach(cell => {
+        document.querySelectorAll('.cell').forEach((cell, index) => {
             cell.addEventListener('click', (e) => this.handleOnlineCellClick(e));
         });
+        console.log('✅ Game board cells bound');
         
         console.log('🎯 All online events bound successfully');
     }
@@ -296,7 +358,8 @@ class OnlineGame {
     }
     
     createRoom() {
-        // التأكد من وجود اسم اللاعب قبل إنشاء الغرفة
+        console.log('🏠 createRoom called, playerName:', this.playerName);
+        
         if (!this.playerName) {
             console.log('❌ No player name found, requesting to set name first');
             this.showNotification('يرجى تعيين اسم اللاعب أولاً', 'error');
@@ -311,12 +374,15 @@ class OnlineGame {
     }
     
     showJoinRoom() {
+        console.log('🚪 showJoinRoom called');
         this.hideAllScreens();
         const roomSetup = document.getElementById('roomSetup');
         if (roomSetup) roomSetup.style.display = 'block';
     }
     
     joinRoom() {
+        console.log('🚪 joinRoom called');
+        
         const roomCodeInput = document.getElementById('roomCodeInput');
         const roomLoading = document.getElementById('roomLoading');
         const joinRoomConfirmBtn = document.getElementById('joinRoomConfirmBtn');
@@ -337,6 +403,8 @@ class OnlineGame {
     }
     
     startLocalGame() {
+        console.log('🎮 startLocalGame called');
+        
         this.gameState = 'local';
         this.showGameArea();
         this.hideOnlineElements();
@@ -353,6 +421,8 @@ class OnlineGame {
     }
     
     startAIGame() {
+        console.log('🤖 startAIGame called');
+        
         this.gameState = 'ai';
         this.showGameArea();
         this.hideOnlineElements();
@@ -472,6 +542,7 @@ class OnlineGame {
     }
     
     startGame() {
+        console.log('🚀 startGame called');
         this.socket.emit('startGame');
     }
     
@@ -694,6 +765,7 @@ class OnlineGame {
     }
     
     leaveRoom() {
+        console.log('🚪 leaveRoom called');
         this.socket.emit('leaveRoom');
         this.gameState = 'menu';
         this.roomId = '';
@@ -702,6 +774,7 @@ class OnlineGame {
     }
     
     backToMenu() {
+        console.log('🏠 backToMenu called');
         if (this.gameState === 'playing' || this.gameState === 'waiting') {
             this.leaveRoom();
         } else {
@@ -728,9 +801,15 @@ class OnlineGame {
     
     // UI Management
     showPlayerSetup() {
+        console.log('🔧 showPlayerSetup called');
         this.hideAllScreens();
         const playerSetup = document.getElementById('playerSetup');
-        if (playerSetup) playerSetup.style.display = 'block';
+        if (playerSetup) {
+            playerSetup.style.display = 'block';
+            console.log('✅ Player setup screen shown');
+        } else {
+            console.error('❌ playerSetup element not found');
+        }
         
         const nameLoading = document.getElementById('nameLoading');
         const setNameBtn = document.getElementById('setNameBtn');
@@ -739,25 +818,41 @@ class OnlineGame {
     }
     
     showMainMenu() {
+        console.log('🏠 showMainMenu called');
         this.hideAllScreens();
         const mainMenu = document.getElementById('mainMenu');
-        if (mainMenu) mainMenu.style.display = 'block';
+        if (mainMenu) {
+            mainMenu.style.display = 'block';
+            console.log('✅ Main menu screen shown');
+        } else {
+            console.error('❌ mainMenu element not found');
+        }
         
         const currentPlayerName = document.getElementById('currentPlayerName');
         if (currentPlayerName) currentPlayerName.textContent = this.playerName;
     }
     
     showGameArea() {
+        console.log('🎮 showGameArea called');
         this.hideAllScreens();
         const gameArea = document.getElementById('gameArea');
-        if (gameArea) gameArea.style.display = 'block';
+        if (gameArea) {
+            gameArea.style.display = 'block';
+            console.log('✅ Game area screen shown');
+        } else {
+            console.error('❌ gameArea element not found');
+        }
     }
     
     hideAllScreens() {
         const screens = ['playerSetup', 'mainMenu', 'roomSetup', 'gameArea'];
         screens.forEach(screenId => {
             const screen = document.getElementById(screenId);
-            if (screen) screen.style.display = 'none';
+            if (screen) {
+                screen.style.display = 'none';
+            } else {
+                console.warn(`⚠️ Screen ${screenId} not found`);
+            }
         });
         
         const roomLoading = document.getElementById('roomLoading');
@@ -767,4 +862,132 @@ class OnlineGame {
     }
     
     showOnlineElements() {
-        const onlineElements = ['roomInfo', 'onlineStatus', 'chatSection',
+        const onlineElements = ['roomInfo', 'onlineStatus', 'chatSection', 'leaveRoomBtn'];
+        onlineElements.forEach(elementId => {
+            const element = document.getElementById(elementId);
+            if (element) element.style.display = element.tagName === 'DIV' ? 'block' : 'inline-flex';
+        });
+    }
+    
+    hideOnlineElements() {
+        const onlineElements = ['roomInfo', 'onlineStatus', 'chatSection', 'leaveRoomBtn'];
+        onlineElements.forEach(elementId => {
+            const element = document.getElementById(elementId);
+            if (element) element.style.display = 'none';
+        });
+    }
+    
+    showLocalElements() {
+        const localGameModes = document.getElementById('localGameModes');
+        const difficultySelector = document.getElementById('difficultySelector');
+        
+        if (localGameModes) {
+            localGameModes.style.display = 'none';
+        }
+        
+        if (difficultySelector) {
+            difficultySelector.style.display = this.gameState === 'ai' ? 'block' : 'none';
+        }
+    }
+    
+    hideLocalElements() {
+        const localElements = ['localGameModes', 'difficultySelector'];
+        localElements.forEach(elementId => {
+            const element = document.getElementById(elementId);
+            if (element) element.style.display = 'none';
+        });
+    }
+    
+    // Utility methods
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    playMoveSound() {
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.1);
+        } catch (e) {
+            console.warn('Could not play sound');
+        }
+    }
+    
+    playSound(type) {
+        const frequencies = {
+            win: 1000,
+            lose: 400,
+            tie: 600
+        };
+        
+        if (!frequencies[type]) return;
+        
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(frequencies[type], audioContext.currentTime);
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.3);
+        } catch (e) {
+            console.warn('Could not play sound');
+        }
+    }
+    
+    showNotification(message, type = 'info') {
+        const notificationsContainer = document.getElementById('notifications');
+        if (!notificationsContainer) return;
+        
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        
+        notification.innerHTML = message.replace(/\n/g, '<br>');
+        
+        notificationsContainer.appendChild(notification);
+        
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.style.animation = 'slideOutRight 0.3s ease forwards';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }
+        }, 4000);
+    }
+}
+
+// Initialize online game when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('🚀 DOM loaded, initializing online game...');
+    
+    // تأخير قصير للتأكد من تحميل جميع العناصر
+    setTimeout(() => {
+        window.onlineGame = new OnlineGame();
+        console.log('✅ Online game initialized');
+    }, 100);
+});
