@@ -98,10 +98,9 @@ class GameRoom {
         this.spectators = this.spectators.filter(spectator => spectator.id !== playerId);
         
         if (this.players.length === 0) {
-            return true; // Room should be deleted
+            return true;
         }
         
-        // If host left, make the other player host
         if (this.players.length === 1 && !this.players[0].isHost) {
             this.players[0].isHost = true;
         }
@@ -134,9 +133,9 @@ class GameRoom {
 
     checkWinner() {
         const winningConditions = [
-            [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
-            [0, 3, 6], [1, 4, 7], [2, 5, 8], // columns
-            [0, 4, 8], [2, 4, 6] // diagonals
+            [0, 1, 2], [3, 4, 5], [6, 7, 8],
+            [0, 3, 6], [1, 4, 7], [2, 5, 8],
+            [0, 4, 8], [2, 4, 6]
         ];
 
         return winningConditions.some(condition => {
@@ -181,7 +180,6 @@ class GameRoom {
                 timestamp: new Date()
             });
             
-            // Keep only last 50 messages
             if (this.chat.length > 50) {
                 this.chat = this.chat.slice(-50);
             }
@@ -226,17 +224,20 @@ io.on('connection', (socket) => {
             return;
         }
 
+        // إحصل على اسم اللاعب الحالي
+        const currentPlayerName = player.name;
         const roomId = uuidv4().substring(0, 6).toUpperCase();
-        const room = new GameRoom(roomId, socket.id, player.name);
+        const room = new GameRoom(roomId, socket.id, currentPlayerName);
         rooms.set(roomId, room);
         
+        // تحديث معلومات اللاعب
         player.roomId = roomId;
         socket.join(roomId);
         
         socket.emit('roomCreated', { roomId, room: room.getRoomInfo() });
         socket.emit('joinedRoom', room.getRoomInfo());
         
-        console.log(`🏠 Room ${roomId} created by ${player.name}`);
+        console.log(`🏠 Room ${roomId} created by ${currentPlayerName} (${socket.id})`);
     });
 
     socket.on('joinRoom', (roomId) => {
@@ -267,7 +268,6 @@ io.on('connection', (socket) => {
                 console.log(`✅ Room ${roomId} is now full`);
             }
         } else {
-            // Join as spectator
             room.addSpectator(socket.id, player.name);
             player.roomId = roomId;
             socket.join(roomId);
@@ -356,15 +356,16 @@ io.on('connection', (socket) => {
     });
 
     socket.on('leaveRoom', () => {
-        handlePlayerDisconnect(socket.id);
+        handlePlayerDisconnect(socket.id, false); // false = مغادرة عادية، ليس انقطاع
     });
 
     socket.on('disconnect', () => {
         console.log(`❌ User disconnected: ${socket.id}`);
-        handlePlayerDisconnect(socket.id);
+        handlePlayerDisconnect(socket.id, true); // true = انقطاع اتصال
     });
 
-    function handlePlayerDisconnect(playerId) {
+    // جديد: التعامل مع مغادرة الغرفة بدون حذف اسم اللاعب
+    function handlePlayerDisconnect(playerId, isDisconnect = true) {
         const player = players.get(playerId);
         if (player && player.roomId) {
             const room = rooms.get(player.roomId);
@@ -379,12 +380,18 @@ io.on('connection', (socket) => {
                     console.log(`👋 ${player.name} left room ${player.roomId}`);
                 }
             }
+            
+            // إعادة تعيين معرف الغرفة فقط، وليس حذف اللاعب
+            player.roomId = null;
         }
-        players.delete(playerId);
+        
+        // حذف اللاعب فقط عند الانقطاع النهائي
+        if (isDisconnect) {
+            players.delete(playerId);
+        }
     }
 });
 
-// Cleanup inactive rooms every 30 minutes
 setInterval(() => {
     const now = new Date();
     const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000);
@@ -397,14 +404,12 @@ setInterval(() => {
     }
 }, 30 * 60 * 1000);
 
-// Start server
 server.listen(PORT, () => {
     console.log(`🚀 Tic Tac Toe Server running on port ${PORT}`);
     console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`⏰ Started at: ${new Date().toISOString()}`);
 });
 
-// Graceful shutdown
 process.on('SIGTERM', () => {
     console.log('🛑 SIGTERM received, shutting down gracefully...');
     server.close(() => {
