@@ -112,13 +112,23 @@
                     <i class="fas fa-gamepad game-icon"></i>
                     <h1 class="game-title">لعبة X O</h1>
                 </div>
+                <!-- تحديث معلومات الغرفة مع زرين منفصلين للنسخ -->
                 <div class="room-info" id="roomInfo" style="display: none;">
-                    <i class="fas fa-home"></i>
-                    <span>رمز الغرفة: </span>
-                    <span id="roomCode"></span>
-                    <button id="copyRoomCode" title="نسخ رمز الغرفة">
-                        <i class="fas fa-copy"></i>
-                    </button>
+                    <div class="room-code-section">
+                        <i class="fas fa-home"></i>
+                        <span>رمز الغرفة: </span>
+                        <span id="roomCode" class="room-code-display"></span>
+                    </div>
+                    <div class="room-actions">
+                        <button id="copyRoomCodeOnly" class="copy-btn code-only" title="نسخ رمز الغرفة فقط">
+                            <i class="fas fa-hashtag"></i>
+                            <span>نسخ الرمز</span>
+                        </button>
+                        <button id="copyRoomCodeWithLink" class="copy-btn with-link" title="نسخ الرابط كاملاً مع رسالة">
+                            <i class="fas fa-link"></i>
+                            <span>نسخ الرابط</span>
+                        </button>
+                    </div>
                 </div>
                 
                 <div class="score-board">
