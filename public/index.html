@@ -135,7 +135,7 @@
                     <div class="player-score player-x">
                         <i class="fas fa-times score-icon"></i>
                         <div class="score-info">
-                            <span class="score-label" id="playerXName">اللاعب X</span>
+                            <span class="score-label editable-name" id="playerXName">اللاعب X</span>
                             <span class="score" id="scoreX">0</span>
                         </div>
                     </div>
@@ -149,9 +149,43 @@
                     <div class="player-score player-o">
                         <i class="far fa-circle score-icon"></i>
                         <div class="score-info">
-                            <span class="score-label" id="playerOName">اللاعب O</span>
+                            <span class="score-label editable-name" id="playerOName">اللاعب O</span>
                             <span class="score" id="scoreO">0</span>
                         </div>
+                    </div>
+                </div>
+
+                <!-- قسم تعديل أسماء اللاعبين للعب المحلي -->
+                <div class="local-players-setup" id="localPlayersSetup" style="display: none;">
+                    <div class="players-setup-header">
+                        <i class="fas fa-users-cog"></i>
+                        <h3>تخصيص أسماء اللاعبين</h3>
+                    </div>
+                    <div class="players-inputs">
+                        <div class="player-input-group">
+                            <div class="player-label">
+                                <i class="fas fa-times player-x-icon"></i>
+                                <span>اللاعب X</span>
+                            </div>
+                            <input type="text" id="localPlayerXName" placeholder="اسم اللاعب الأول" maxlength="15" value="اللاعب X">
+                        </div>
+                        <div class="player-input-group">
+                            <div class="player-label">
+                                <i class="far fa-circle player-o-icon"></i>
+                                <span>اللاعب O</span>
+                            </div>
+                            <input type="text" id="localPlayerOName" placeholder="اسم اللاعب الثاني" maxlength="15" value="اللاعب O">
+                        </div>
+                    </div>
+                    <div class="players-setup-actions">
+                        <button id="applyPlayersNames" class="apply-names-btn">
+                            <i class="fas fa-check"></i>
+                            <span>تطبيق الأسماء</span>
+                        </button>
+                        <button id="resetPlayersNames" class="reset-names-btn">
+                            <i class="fas fa-undo"></i>
+                            <span>إعادة تعيين</span>
+                        </button>
                     </div>
                 </div>
             </header>
@@ -200,6 +234,10 @@
                         <button class="control-btn reset-btn" id="resetBtn">
                             <i class="fas fa-redo"></i>
                             <span>إعادة تشغيل</span>
+                        </button>
+                        <button class="control-btn settings-btn" id="playersSettingsBtn" style="display: none;">
+                            <i class="fas fa-users-cog"></i>
+                            <span>إعدادات اللاعبين</span>
                         </button>
                         <button class="control-btn leave-btn" id="leaveRoomBtn" style="display: none;">
                             <i class="fas fa-door-open"></i>
